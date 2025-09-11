@@ -11,22 +11,16 @@ export default async function handler(req, res) {
 
     const limit = parseInt(req.query.limit) || 50;
 
-    const searchResult = await youtube.search(query, { type: "video" });
+    let searchResult = await youtube.search(query, { type: "video" });
     let results = searchResult.videos ? Array.from(searchResult.videos) : [];
 
     while (results.length < limit && searchResult.has_continuation) {
-      const next = await searchResult.getContinuation();
-      results = results.concat(next.videos || []);
+      searchResult = await searchResult.getContinuation();
+      results = results.concat(searchResult.videos || []);
     }
 
-    res.json({
-      results: results.slice(0, limit).map(v => ({
-        id: v.id,
-        title: v.title?.text || v.title,
-        duration: v.duration?.text,
-        channel: v.author?.name,
-      }))
-    });
+    // 加工せずそのまま返す
+    res.json(results.slice(0, limit));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
