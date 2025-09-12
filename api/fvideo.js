@@ -14,15 +14,9 @@ export default async function handler(req, res) {
 
     // トレンド取得
     const mtrending = await youtube.getTrending("music");
-    const vtrending = await youtube.getTrending();
-    const gtrending = await youtube.getTrending("gaming");
 
-    // 何も加工せずそのまま返す
-    res.status(200).json({
-      videos: vtrending,
-      music: mtrending,
-      gaming: gtrending
-    });
+    // そのまま返す
+    res.status(200).json(mtrending);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
