@@ -1,27 +1,67 @@
+// api/search.js
 import { Innertube } from "youtubei.js";
 
 let youtube;
 
 export default async function handler(req, res) {
   try {
-    if (!youtube) youtube = await Innertube.create();
+    if (!youtube) youtube = await Innertube.create({ lang: "ja" });
 
-    const query = req.query.q;
-    if (!query) return res.status(400).json({ error: "Missing search query" });
+    const { q, type, upload, feature, duration } = req.query;
 
-    const limit = parseInt(req.query.limit) || 50;
+    if (!q) return res.status(400).json({ error: "Missing search query" });
 
-    let searchResult = await youtube.search(query, { type: "video" });
-    let results = searchResult.videos ? Array.from(searchResult.videos) : [];
+    // 通常検索
+    let search = await youtube.search(q);
 
-    while (results.length < limit && searchResult.has_continuation) {
-      searchResult = await searchResult.getContinuation();
-      results = results.concat(searchResult.videos || []);
+    // --- フィルター マップ ---
+    const typeMap = { video: "Video", channel: "Channel", playlist: "Playlist" };
+    const uploadMap = {
+      "last-hour": "Last hour",
+      today: "Today",
+      week: "This week",
+      month: "This month",
+      year: "This year"
+    };
+    const durationMap = { short: "Short (<4 min)", long: "Long (>20 min)" };
+    const featureMap = {
+      hd: "HD",
+      subtitles: "Subtitles/CC",
+      creative: "Creative Commons",
+      live: "Live",
+      "360": "360°",
+      "4k": "4K",
+      hdr: "HDR",
+      vr180: "VR180",
+      location: "Location",
+      purchased: "Purchased"
+    };
+
+    // --- Type フィルター ---
+    if (type && search.filters.get("Type")?.get(typeMap[type])) {
+      search = await search.filters.get("Type").get(typeMap[type]).select();
     }
 
-    // 加工せずそのまま返す
-    res.json(results.slice(0, limit));
+    // --- Upload date フィルター ---
+    if (upload && search.filters.get("Upload date")?.get(uploadMap[upload])) {
+      search = await search.filters.get("Upload date").get(uploadMap[upload]).select();
+    }
+
+    // --- Duration フィルター ---
+    if (duration && search.filters.get("Duration")?.get(durationMap[duration])) {
+      search = await search.filters.get("Duration").get(durationMap[duration]).select();
+    }
+
+    // --- Features フィルター ---
+    if (feature && search.filters.get("Features")?.get(featureMap[feature])) {
+      search = await search.filters.get("Features").get(featureMap[feature]).select();
+    }
+
+    // 生のレスポンスを返す
+    return res.status(200).json(search);
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error in search:", err);
+    return res.status(500).json({ error: err.message });
   }
 }
