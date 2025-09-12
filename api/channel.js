@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
     const id = req.query.id;
     const page = parseInt(req.query.page || "1"); // デフォルト1ページ目
-    const perPage = 50; // 1ページあたり50件
+    const perPage = 100; // 1ページあたり50件
 
     if (!id) return res.status(400).json({ error: "Missing channel id" });
 
