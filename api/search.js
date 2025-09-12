@@ -11,10 +11,10 @@ export default async function handler(req, res) {
 
     if (!q) return res.status(400).json({ error: "Missing search query" });
 
-    // 通常検索
+    // --- 通常検索 ---
     let search = await youtube.search(q);
 
-    // --- フィルター マップ ---
+    // --- フィルターマップ ---
     const typeMap = { video: "Video", channel: "Channel", playlist: "Playlist" };
     const uploadMap = {
       "last-hour": "Last hour",
@@ -38,26 +38,38 @@ export default async function handler(req, res) {
     };
 
     // --- Type フィルター ---
-    if (type && search.filters.get("Type")?.get(typeMap[type])) {
-      search = await search.filters.get("Type").get(typeMap[type]).select();
+    if (type) {
+      const typeCategory = search.filters.get("Type");
+      if (typeCategory && typeCategory.get(typeMap[type])) {
+        search = await typeCategory.get(typeMap[type]).select();
+      }
     }
 
     // --- Upload date フィルター ---
-    if (upload && search.filters.get("Upload date")?.get(uploadMap[upload])) {
-      search = await search.filters.get("Upload date").get(uploadMap[upload]).select();
+    if (upload) {
+      const uploadCategory = search.filters.get("Upload date");
+      if (uploadCategory && uploadCategory.get(uploadMap[upload])) {
+        search = await uploadCategory.get(uploadMap[upload]).select();
+      }
     }
 
     // --- Duration フィルター ---
-    if (duration && search.filters.get("Duration")?.get(durationMap[duration])) {
-      search = await search.filters.get("Duration").get(durationMap[duration]).select();
+    if (duration) {
+      const durationCategory = search.filters.get("Duration");
+      if (durationCategory && durationCategory.get(durationMap[duration])) {
+        search = await durationCategory.get(durationMap[duration]).select();
+      }
     }
 
     // --- Features フィルター ---
-    if (feature && search.filters.get("Features")?.get(featureMap[feature])) {
-      search = await search.filters.get("Features").get(featureMap[feature]).select();
+    if (feature) {
+      const featureCategory = search.filters.get("Features");
+      if (featureCategory && featureCategory.get(featureMap[feature])) {
+        search = await featureCategory.get(featureMap[feature]).select();
+      }
     }
 
-    // 生のレスポンスを返す
+    // --- 生のレスポンスを返す ---
     return res.status(200).json(search);
 
   } catch (err) {
