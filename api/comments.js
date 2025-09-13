@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     const id = req.query.id;
     if (!id) return res.status(400).json({ error: "Missing video id" });
 
-    const limit = 100;
+    const limit = 300;
 
     let comments = await youtube.getComments(id);
     let allComments = comments.contents ? Array.from(comments.contents) : [];
