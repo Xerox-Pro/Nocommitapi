@@ -19,7 +19,7 @@ export default async function handler(req, res) {
       info.watch_next_feed = info.watch_next_feed.slice(0, 50);
     }
     if (info.secondary_info?.watch_next_feed) {
-      info.secondary_info.watch_next_feed = info.secondary_info.watch_next_feed.slice(0, 20);
+      info.secondary_info.watch_next_feed = info.secondary_info.watch_next_feed.slice(0, 100);
     }
 
     res.status(200).json(info);
