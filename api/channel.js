@@ -10,19 +10,16 @@ export default async function handler(req, res) {
 
     const id = req.query.id;
     const page = parseInt(req.query.page || "1");
-    const perPage = 150; // 1ページあたりの件数
+    const perPage = 150;
 
     if (!id) {
       return res.status(400).json({ error: "Missing channel id" });
     }
 
-    // チャンネル情報を取得
+    // チャンネル情報と動画一覧
     const channel = await youtube.getChannel(id);
-
-    // 動画一覧を取得
     let videosFeed = await channel.getVideos({ limit: perPage });
 
-    // ページ送り処理
     for (let i = 1; i < page; i++) {
       if (videosFeed.hasNext()) {
         videosFeed = await videosFeed.next();
@@ -32,20 +29,33 @@ export default async function handler(req, res) {
       }
     }
 
-    // レスポンスを返す
+    // 登録者数を補完：最初の動画から取得
+    let subscriberCount = channel.subscriber_count || null;
+    if (!subscriberCount && videosFeed.videos.length > 0) {
+      try {
+        const firstVideoId = videosFeed.videos[0].id;
+        const videoInfo = await youtube.getInfo(firstVideoId);
+        subscriberCount =
+          videoInfo?.basic_info?.author?.subscriber_count ||
+          videoInfo?.author?.subscriber_count ||
+          null;
+      } catch (e) {
+        console.warn("Could not fetch subscriber count from video:", e.message);
+      }
+    }
+
     res.status(200).json({
       channel: {
         id: channel.id,
         name: channel.metadata?.title || channel.name || null,
         description: channel.metadata?.description || null,
-        avatar: channel.metadata?.avatar || null, // アイコン
-        banner: channel.metadata?.banner || null, // ヘッダー
-        subscriberCount: channel.subscriber_count || null // 登録者数
+        avatar: channel.metadata?.avatar || null,
+        banner: channel.metadata?.banner || null,
+        subscriberCount
       },
       page,
       videos: videosFeed.videos || []
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
