@@ -18,6 +18,7 @@ export default async function handler(req, res) {
 
     // チャンネル情報を取得
     const channel = await youtube.getChannel(id);
+    const basicInfo = await channel.getBasicInfo(); // 補助的に情報を取得
 
     // 動画一覧を取得
     let videosFeed = await channel.getVideos({ limit: perPage });
@@ -36,11 +37,12 @@ export default async function handler(req, res) {
     res.status(200).json({
       channel: {
         id: channel.id,
-        name: channel.metadata?.title || channel.name || null,
-        description: channel.metadata?.description || null,
-        avatar: channel.metadata?.avatar || null, // アイコン
-        banner: channel.metadata?.banner || null, // ヘッダー
-        subscriberCount: channel.subscriber_count || null // 登録者数
+        name: basicInfo?.metadata?.title || channel.name || null,
+        description: basicInfo?.metadata?.description || null,
+        avatar: basicInfo?.metadata?.avatar || null,  // アイコン
+        banner: basicInfo?.metadata?.banner || null,  // ヘッダー
+        subscriberCount:
+          basicInfo?.subscriber_count || channel.subscriber_count || null
       },
       page,
       videos: videosFeed.videos || []
