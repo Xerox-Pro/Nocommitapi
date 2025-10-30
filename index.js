@@ -5,7 +5,8 @@ import search from "./api/search.js";
 import video from "./api/video.js";
 import fvideo from "./api/fvideo.js";
 import search2 from "./api/search2.js";
-import videodw from "./api/videodw.js"; // 追加
+import videodw from "./api/videodw.js";
+import proxy from "./api/proxy.js"; // 追加
 
 const app = express();
 
@@ -16,7 +17,10 @@ app.get("/api/search", search);
 app.get("/api/video", video);
 app.get("/api/fvideo", fvideo);
 app.get("/api/search2", search2);
-app.get("/api/videodw", videodw); // 追加
+app.get("/api/videodw", videodw);
+
+// proxyはGETとPOST両方受け付けるようにする
+app.all("/api/proxy", proxy); // 追加
 
 // "/" ページでAPI情報を返す、（消しても良い）
 app.get("/", (_,res) => {
