@@ -1,11 +1,41 @@
 import { Innertube } from "youtubei.js";
 
-let youtube;
+let youtubeWithProxy;
+
+// youtubei.jsが使用するfetchを上書きするカスタム関数
+const customFetch = async (url, options) => {
+  // Vercelが自動で提供する環境変数から、デプロイ先のURLを取得
+  // ローカル環境(vercel dev)の場合は localhost:3000 を想定
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}` 
+    : 'http://localhost:8080';
+  
+  const targetUrl = typeof url === 'string' ? url : url.toString();
+  
+  // 我々のプロキシエンドポイントのURLを構築
+  const proxyUrl = new URL(`${baseUrl}/api/proxy`);
+  proxyUrl.searchParams.set('url', targetUrl);
+
+  // 元のリクエスト情報（ヘッダーやボディ）をそのままプロキシに渡す
+  const response = await fetch(proxyUrl, {
+    method: options.method,
+    headers: options.headers,
+    body: options.body,
+    // duplexはEdge Runtimeでストリーミングボディを扱う際に必要
+    ...(options.body ? { duplex: 'half' } : {}),
+  });
+
+  return response;
+};
+
 
 export default async function handler(req, res) {
   try {
-    if (!youtube) {
-      youtube = await Innertube.create();
+    // カスタムfetch関数を使ってInnertubeインスタンスを初期化
+    if (!youtubeWithProxy) {
+      youtubeWithProxy = await Innertube.create({ 
+        fetch: customFetch 
+      });
     }
 
     const videoId = req.query.id;
@@ -13,24 +43,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing video id" });
     }
 
-    const info = await youtube.getInfo(videoId);
+    // このgetInfoは内部的にcustomFetchを呼び出し、我々のプロキシを経由する
+    const info = await youtubeWithProxy.getInfo(videoId);
 
-    // streaming_dataからフォーマット情報を取得
     const formats = info.streaming_data?.formats || [];
     const adaptiveFormats = info.streaming_data?.adaptive_formats || [];
 
-    // 高品質なMP4 (ビデオ+オーディオ結合済み) を探す
     const highQualityMp4 = formats
       .filter(f => f.mime_type.startsWith('video/mp4') && f.has_audio)
-      .sort((a, b) => (b.height || 0) - (a.height || 0)) // 解像度で降順ソート
-      [0]; // 最も高品質なものを選択
+      .sort((a, b) => (b.height || 0) - (a.height || 0))
+      [0];
 
-    // 高品質なオーディオ (webm/opus or mp4/aac) を探す
-    // YouTubeはWAVを直接提供しないため、利用可能な最高ビットレートのオーディオを選択
     const highQualityAudio = adaptiveFormats
       .filter(f => f.mime_type.startsWith('audio/'))
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0)) // ビットレートで降順ソート
-      [0]; // 最も高品質なものを選択
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
+      [0];
 
     res.status(200).json({
       mp4: highQualityMp4 || null,
@@ -38,6 +65,10 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error in videodw via proxy:", err);
+    res.status(500).json({ 
+      error: "An error occurred while fetching video data through the proxy.",
+      message: err.message 
+    });
   }
 }
